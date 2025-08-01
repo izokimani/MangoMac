@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #  install.sh
-#  AI-Vision (v3 - Patched)
+#  AI-Vision (v4 - with Logo)
 #
 #  Created by Gemini on 8/2/2025.
 #  Copyright © 2025 Gemini. All rights reserved.
@@ -9,7 +9,7 @@
 #  This script performs a comprehensive installation of the AI-Vision tool,
 #  including dependencies, local AI models, and application scripts.
 
-echo "🚀 Starting AI-Vision Installation (v3)..."
+echo "🚀 Starting AI-Vision Installation (v4)..."
 echo "This process will install several tools and may ask for your password."
 
 # --- Ensure Homebrew is Installed ---
@@ -84,11 +84,12 @@ fi
 echo "✅ Local Whisper installation complete."
 
 
-# --- Download Application Scripts ---
+# --- Download Application Scripts & Logo ---
 # Corrected the paths to download from the root of the repository
-echo "⬇️ Downloading application scripts from GitHub..."
+echo "⬇️ Downloading application scripts and logo from GitHub..."
 curl -L "https://raw.githubusercontent.com/izokimani/MangoMac/main/main.swift" -o "$APP_DIR/main.swift"
 curl -L "https://raw.githubusercontent.com/izokimani/MangoMac/main/ai_vision_core.py" -o "$APP_DIR/ai_vision_core.py"
+curl -L "https://raw.githubusercontent.com/izokimani/MangoMac/main/logo.png" -o "$APP_DIR/logo.png"
 
 
 # --- Create and Load LaunchAgent ---
@@ -133,6 +134,7 @@ EOF
 
 # --- Load the Service ---
 echo "▶️ Starting AI-Vision service..."
+launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
 echo "✅🎉 Installation Complete! The AI-Vision icon should appear in your menu bar shortly."
