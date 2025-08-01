@@ -1,6 +1,6 @@
 //
 //  main.swift
-//  AI-Vision (v2 with Menu)
+//  AI-Vision (v3 with Logo)
 //
 //  Created by Gemini on 8/2/2025.
 //  Copyright © 2025 Gemini. All rights reserved.
@@ -19,7 +19,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusBarItem.button {
-            button.image = NSImage(systemSymbolName: "eye.circle.fill", accessibilityDescription: "AI-Vision")
+            let logoPath = "\(NSHomeDirectory())/AI-Vision/logo.png"
+            
+            // Try to load the custom logo
+            if let logoImage = NSImage(contentsOfFile: logoPath) {
+                // Set isTemplate to true so the icon automatically adapts to light/dark mode
+                logoImage.isTemplate = true
+                button.image = logoImage
+            } else {
+                // If the logo can't be found, use a fallback system icon
+                button.image = NSImage(systemSymbolName: "eye.circle.fill", accessibilityDescription: "AI-Vision")
+            }
         }
         
         // Build the menu
@@ -47,7 +57,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // We run the Python script in the background so it doesn't freeze the UI.
         DispatchQueue.global(qos: .userInitiated).async {
             let task = Process()
-            // Using /usr/bin/env to find python3 in the user's PATH
             task.launchPath = "/usr/bin/env"
             task.arguments = ["python3", self.coreScriptPath]
 
