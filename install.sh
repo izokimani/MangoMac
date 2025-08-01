@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #  install.sh
-#  AI-Vision (v2 with Local Whisper)
+#  AI-Vision (v3 - Patched)
 #
 #  Created by Gemini on 8/2/2025.
 #  Copyright © 2025 Gemini. All rights reserved.
@@ -9,51 +9,47 @@
 #  This script performs a comprehensive installation of the AI-Vision tool,
 #  including dependencies, local AI models, and application scripts.
 
-echo "🚀 Starting AI-Vision Installation..."
-echo "This process will install several tools and may ask for your password for system commands."
+echo "🚀 Starting AI-Vision Installation (v3)..."
+echo "This process will install several tools and may ask for your password."
 
 # --- Ensure Homebrew is Installed ---
 if ! command -v brew &> /dev/null; then
     echo "🍺 Homebrew not found. Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    # Add Homebrew to PATH for the current script session
     eval "$(/opt/homebrew/bin/brew shellenv)"
 else
     echo "✅ Homebrew is already installed."
 fi
 
 # --- Install Core Dependencies with Homebrew ---
-echo "📦 Installing core dependencies (Tesseract, Python, FFmpeg)..."
-brew install tesseract python ffmpeg
+# Added cmake for whisper.cpp compilation
+echo "📦 Installing core dependencies (Tesseract, Python, FFmpeg, CMake)..."
+brew install tesseract python ffmpeg cmake
 
 # --- Install Python Libraries ---
+# Added --break-system-packages to handle the externally-managed-environment error
 echo "🐍 Installing necessary Python libraries..."
-pip3 install openai pillow pytesseract sounddevice scipy
+pip3 install --break-system-packages openai pillow pytesseract sounddevice scipy
 
 # --- Set Up Secure API Key ---
-echo "🔑 Please enter your OpenAI API key. It will be stored securely."
+echo "🔑 Please enter your actual OpenAI API key and press Enter."
 printf "OpenAI API Key: "
 read -sp OPENAI_API_KEY
 echo
 
-# Determine the correct shell profile file for environment variables
-PROFILE_FILE=""
-if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
-    PROFILE_FILE="$HOME/.zshrc"
-elif [ -n "$BASH_VERSION" ] || [ -f "$HOME/.bash_profile" ]; then
+# Determine the correct shell profile file
+PROFILE_FILE="$HOME/.zshrc"
+if [ ! -f "$PROFILE_FILE" ]; then
     PROFILE_FILE="$HOME/.bash_profile"
-else
-    # Fallback for other shells
-    PROFILE_FILE="$HOME/.profile"
+    if [ ! -f "$PROFILE_FILE" ]; then
+        PROFILE_FILE="$HOME/.profile"
+    fi
 fi
 
 echo "🔐 Adding API key to your shell profile: $PROFILE_FILE"
-# Ensure the key is not added if it already exists
+# Add the export command to the profile file, ensuring it's not duplicated
 grep -qF "export OPENAI_API_KEY" "$PROFILE_FILE" || echo "export OPENAI_API_KEY='$OPENAI_API_KEY'" >> "$PROFILE_FILE"
-
-echo "✅ API Key has been set. It will be available in new terminal sessions."
-# Export for the current session to ensure the LaunchAgent gets it
-export OPENAI_API_KEY
+export OPENAI_API_KEY=$OPENAI_API_KEY
 
 # --- Setup Application Directory ---
 APP_DIR="$HOME/AI-Vision"
@@ -64,17 +60,20 @@ mkdir -p "$APP_DIR"
 echo "🎤 Installing local speech-to-text model (Whisper.cpp)..."
 cd "$APP_DIR"
 if [ -d "whisper.cpp" ]; then
-    echo "   - whisper.cpp directory already exists. Skipping git clone."
+    echo "   - whisper.cpp directory already exists. Pulling latest changes."
+    cd whisper.cpp
+    git pull
 else
     git clone https://github.com/ggerganov/whisper.cpp.git
+    cd whisper.cpp
 fi
-cd whisper.cpp
 
-# Compile the whisper.cpp code
+# Compile the whisper.cpp code using cmake
 echo "   - Compiling whisper.cpp..."
-make
+cmake -B build
+cmake --build build -j
 
-# Download a pre-trained model. We use 'base.en' for a good balance of speed and accuracy.
+# Download a pre-trained model
 MODEL="base.en"
 echo "   - Downloading Whisper model ($MODEL)..."
 if [ ! -f "models/ggml-$MODEL.bin" ]; then
@@ -86,18 +85,16 @@ echo "✅ Local Whisper installation complete."
 
 
 # --- Download Application Scripts ---
+# Corrected the paths to download from the root of the repository
 echo "⬇️ Downloading application scripts from GitHub..."
-# IMPORTANT: Replace with your actual GitHub repository URL
-curl -L "https://raw.githubusercontent.com/your-username/your-repo/main/AIVision/main.swift" -o "$APP_DIR/main.swift"
-curl -L "https://raw.githubusercontent.com/your-username/your-repo/main/AIVision/ai_vision_core.py" -o "$APP_DIR/ai_vision_core.py"
+curl -L "https://raw.githubusercontent.com/izokimani/MangoMac/main/main.swift" -o "$APP_DIR/main.swift"
+curl -L "https://raw.githubusercontent.com/izokimani/MangoMac/main/ai_vision_core.py" -o "$APP_DIR/ai_vision_core.py"
 
 
 # --- Create and Load LaunchAgent ---
-# This service runs the Swift menu bar app automatically on login.
 PLIST_PATH="$HOME/Library/LaunchAgents/com.gemini.aivision.plist"
 echo "⚙️ Creating system service (LaunchAgent) to run on login..."
 
-# The LaunchAgent needs the full system PATH to find commands like `brew` and `python`.
 FULL_PATH=$(/usr/bin/env bash -c 'echo $PATH')
 
 cat <<EOF > "$PLIST_PATH"
@@ -136,9 +133,7 @@ EOF
 
 # --- Load the Service ---
 echo "▶️ Starting AI-Vision service..."
-launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
 echo "✅🎉 Installation Complete! The AI-Vision icon should appear in your menu bar shortly."
-echo "You can view logs in $APP_DIR/aivision.log"
-
+echo "If it doesn't appear, try logging out and back into your Mac."
